@@ -16,6 +16,7 @@
 |---|---|---|---|
 | [`PAWMODEL.md`](PAWMODEL.md) | 1.1.0 | **模型包与清单哈希规范**：9 个标准字段 + 别名归一 + 校验规则 + `system_prompt_sha256` / `manifest_sha256` 清单哈希锁 + 上架与 85/15 版税口径 | `apipaw/apipaw-cloud` → `pawmodel_manifest.py` |
 | [`POI-PROTOCOL.md`](POI-PROTOCOL.md) | 1.0.0 | **推理证明（PoI）协议**：HMAC-SHA256 收据 + canonical 口径 + 5% 确定性抽检 + Token 膨胀 / 低熵两道防欺诈守卫 + Slashing 扣罚 | 节点侧 `apipaw/apipaw-agent` → `receipt_signing.py`；网关侧 `apipaw/apipaw-cloud` → `poi_engine.py` |
+| [`checkpoints/`](checkpoints/README.md) | — | **默克尔状态根的公开外部见证**：只追加的检查点链（epoch_hash 哈希链）+ 见证提交映射 | 网关侧 `apipaw/apipaw-cloud` → `state_epochs.py` / `merkle_state.py` |
 
 ---
 
@@ -40,6 +41,15 @@
   做逐字节对照（`APIPAW_AGENT_REPO`）⇒ 云端与节点的协议漂移会被立刻发现。
 - **哈希锁**：模型包的 `manifest_sha256` 是**可复算的指纹**，任何一格改动都会
   让指纹变，而旧指纹仍留在账本里。
+- **本仓自身的 CI**（`.github/workflows/checkpoints.yml`）：每次 push/PR 都会跑
+  [`scripts/verify_checkpoints.py`](scripts/verify_checkpoints.py)，独立复算
+  检查点链的 `epoch_hash`、校验 `prev_epoch_hash` 衔接、确认每个
+  `anchor_commit` **真的落在本仓公开历史里** ⇒ "被外部见证过"由机器判定。
+  该脚本只用标准库，任何人可本地复算：
+
+  ```bash
+  python3 scripts/verify_checkpoints.py
+  ```
 
 ---
 

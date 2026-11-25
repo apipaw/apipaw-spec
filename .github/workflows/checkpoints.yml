@@ -1,0 +1,43 @@
+name: APIPaw Spec CI
+
+# 阶段二十五 P3 · 让「外部见证」这件事**由机器判定**，而不是靠人记得核对。
+#
+# 背景：`checkpoints/prod-state-roots.jsonl` 是默克尔状态根的公开外部见证，
+#   它的价值全在"不可篡改"。但只要没人跑校验，一格被改坏要等到有人手工核对
+#   才发现 —— 那时候"被见证过"就退化成一句无法证伪的话。
+#
+# 这个流水线做四件事：
+#   1. epoch_no 连续（1,2,3…）；
+#   2. epoch_hash 自洽（按 canonical 串独立复算 sha256）；
+#   3. prev_epoch_hash 与前序 epoch_hash 衔接（哈希链不断）；
+#   4. anchors.jsonl 里的每个 anchor_commit **确实存在于本仓公开历史里**
+#      ⇒ 网关宣称"我被 Git 见证过"这句话，必须有一枚真实的公开提交兜底。
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apipaw-spec-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checkpoints:
+    name: Verify checkpoint chain
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # ⚠️ 必须**完整历史**（不能浅克隆）：
+          #   校验要确认 anchor_commit 落在本仓公开历史里 —— 浅克隆只有最新一个提交，
+          #   历史锚点会被误判为"不存在"。
+          fetch-depth: 0
+
+      - name: Verify public checkpoint chain
+        run: python3 scripts/verify_checkpoints.py
